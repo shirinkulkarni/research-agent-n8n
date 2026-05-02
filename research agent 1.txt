@@ -1,0 +1,229 @@
+{
+  "name": "AI Market Research Agent - Full Free Version",
+  "nodes": [
+    {
+      "parameters": {
+        "url": "https://www.reddit.com/r/startups/top/.json?t=week",
+        "responseFormat": "json"
+      },
+      "id": "1",
+      "name": "Fetch Reddit Trends",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [300, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://www.producthunt.com/",
+        "responseFormat": "string"
+      },
+      "id": "2",
+      "name": "Fetch ProductHunt Page",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [300, 500]
+    },
+    {
+      "parameters": {
+        "html": "={{ $json[\"body\"] }}",
+        "options": {
+          "extractAllMatches": true
+        },
+        "extractionValues": {
+          "values": [
+            {
+              "key": "ph_titles",
+              "cssSelector": "h3[class*=\"styles_title\"]",
+              "returnValue": "text"
+            }
+          ]
+        }
+      },
+      "id": "3",
+      "name": "Extract PH Titles",
+      "type": "n8n-nodes-base.htmlExtract",
+      "typeVersion": 1,
+      "position": [500, 500]
+    },
+    {
+      "parameters": {
+        "functionCode": "const redditTitles = items[0].json.data.children.map(post => post.data.title);\nconst phTitles = items[1].json.ph_titles;\nreturn [{ json: { allTitles: redditTitles.concat(phTitles).join(\"\\n\") }}];"
+      },
+      "id": "4",
+      "name": "Merge Titles",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [700, 400]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:11434/api/generate",
+        "responseFormat": "json",
+        "jsonParameters": true,
+        "body": "{\n  \"model\": \"llama3\",\n  \"prompt\": \"You are a market research AI. Analyze these startup trends and extract 10 emerging business opportunities with unmet customer pain points.\\n\\nInput:\\n{{ $json[\"allTitles\"] }}\\n\\nOutput: List of 10 opportunities:\",\n  \"stream\": false\n }"
+      },
+      "id": "5",
+      "name": "LLM - Extract Opportunities",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [900, 400]
+    },
+    {
+      "parameters": {
+        "functionCode": "return [{ json: { opportunities: $json.response }}];"
+      },
+      "id": "6",
+      "name": "Clean Response",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1100, 400]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:11434/api/generate",
+        "responseFormat": "json",
+        "jsonParameters": true,
+        "body": "{\n  \"model\": \"llama3\",\n  \"prompt\": \"Now simulate 3 customer interviews for the most promising opportunity from this list: \\n{{ $json[\"opportunities\"] }}\\n\\nGenerate realistic customer feedback with pain points, desired solutions, and willingness to pay.\",\n  \"stream\": false\n}"
+      },
+      "id": "7",
+      "name": "LLM - Simulate Interviews",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [1300, 400]
+    },
+    {
+      "parameters": {
+        "functionCode": "return [{ json: { interviews: $json.response }}];"
+      },
+      "id": "8",
+      "name": "Extract Interviews",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1500, 400]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:11434/api/generate",
+        "responseFormat": "json",
+        "jsonParameters": true,
+        "body": "{\n  \"model\": \"llama3\",\n  \"prompt\": \"Based on the opportunities and interviews, summarize a one-page market research report including Market Size Estimate, Target Customer Profile, Pain Points, Proposed Solution, and Competitor Notes.\\n\\nOpportunities:\\n{{ $json[\"opportunities\"] }}\\n\\nInterviews:\\n{{ $json[\"interviews\"] }}\",\n  \"stream\": false\n}"
+      },
+      "id": "9",
+      "name": "LLM - Final Report",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [1700, 400]
+    },
+    {
+      "parameters": {
+        "functionCode": "return [{ json: { finalReport: $json.response }}];"
+      },
+      "id": "10",
+      "name": "Extract Final Report",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1900, 400]
+    }
+  ],
+  "connections": {
+    "Fetch Reddit Trends": {
+      "main": [
+        [
+          {
+            "node": "Fetch ProductHunt Page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch ProductHunt Page": {
+      "main": [
+        [
+          {
+            "node": "Extract PH Titles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract PH Titles": {
+      "main": [
+        [
+          {
+            "node": "Merge Titles",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Titles": {
+      "main": [
+        [
+          {
+            "node": "LLM - Extract Opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM - Extract Opportunities": {
+      "main": [
+        [
+          {
+            "node": "Clean Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean Response": {
+      "main": [
+        [
+          {
+            "node": "LLM - Simulate Interviews",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM - Simulate Interviews": {
+      "main": [
+        [
+          {
+            "node": "Extract Interviews",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Interviews": {
+      "main": [
+        [
+          {
+            "node": "LLM - Final Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM - Final Report": {
+      "main": [
+        [
+          {
+            "node": "Extract Final Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
